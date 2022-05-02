@@ -1,16 +1,13 @@
 package com.geekbrains.clientchat;
 
 import javafx.application.Application;
-import javafx.event.EventHandler;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.stage.Stage;
-import javafx.stage.WindowEvent;
-
 import java.io.IOException;
-import java.util.function.Consumer;
+
 
 public class ClientChat extends Application {
 
@@ -38,7 +35,7 @@ public class ClientChat extends Application {
         connectToServer(controller);
     }
 
-    private void connectToServer(ClientController clientController) {
+    private void connectToServer(ClientController clientController) throws IOException {
         Network network = new Network();
         boolean resultConnectedToServer = network.connect();
         if (!resultConnectedToServer) {
@@ -49,13 +46,8 @@ public class ClientChat extends Application {
 
         clientController.setNetwork(network);
         clientController.setApplication(this);
-
-        stage.setOnCloseRequest(new EventHandler<WindowEvent>() {
-            @Override
-            public void handle(WindowEvent windowEvent) {
-                network.close();
-            }
-        });
+        stage.setOnCloseRequest(windowEvent -> network.close());
+        network.consoleChat();
     }
 
     public void showErrorDialog(String message) {
@@ -64,6 +56,7 @@ public class ClientChat extends Application {
         alert.setContentText(message);
         alert.showAndWait();
     }
+
     public static void main(String[] args) {
 
         launch();

@@ -15,45 +15,44 @@ public class EhoServer {
 
         echoServer();
     }
-private static void echoServer(){
-    try (ServerSocket serverSocket = new ServerSocket(PORT)) {
-        System.out.println("Сервер начал работу, ожидаем новые подключения");
-        Socket clientSocket = serverSocket.accept();
-        System.out.println("Клиент подключился");
 
-        DataInputStream inputStream = new DataInputStream(clientSocket.getInputStream()); // чтение
-        DataOutputStream outputStream = new DataOutputStream(clientSocket.getOutputStream()); // запись
+    private static void echoServer() {
+        try (ServerSocket serverSocket = new ServerSocket(PORT)) {
+            System.out.println("Сервер начал работу, ожидаем новые подключения");
+            Socket clientSocket = serverSocket.accept();
+            System.out.println("Клиент подключился");
 
-        processClientConnection(inputStream);
-        sendMessage(outputStream);
-    } catch (IOException e) {
-        System.err.println("Ошибка при подключении к порту " + PORT);
-        e.printStackTrace();
+            DataInputStream inputStream = new DataInputStream(clientSocket.getInputStream()); // чтение
+            DataOutputStream outputStream = new DataOutputStream(clientSocket.getOutputStream()); // запись
+
+            processClientConnection(inputStream);
+            sendMessage(outputStream);
+        } catch (IOException e) {
+            System.err.println("Ошибка при подключении к порту " + PORT);
+            e.printStackTrace();
+        }
+
     }
 
-}
     private static void processClientConnection(DataInputStream inputStream) {
-                Thread thread = new Thread(new Runnable() {
-                    @Override
-                    public void run() {
-                        while (true) {
-                            try {
-                                String message = inputStream.readUTF();
-                                System.out.println(message);
-                                if (message.startsWith("/end")) {
-                                    break;
-                                }
-                                System.out.println("сообщение от клиента: " + message);
-                            } catch (IOException e) {
-                                System.out.println("Сетевое соединение было закрыто");
-                                break;
-                            }
-                        }
+        Thread thread = new Thread(() -> {
+            while (true) {
+                try {
+                    String message = inputStream.readUTF();
+                    if (message.startsWith("/end")) {
+                        break;
                     }
-                });
-                thread.setDaemon(true);
-                thread.start();
+                    System.out.println("сообщение от клиента: " + message);
+                } catch (IOException e) {
+                    System.out.println("Сетевое соединение было закрыто");
+                    break;
+                }
+            }
+        });
+        thread.setDaemon(true);
+        thread.start();
     }
+
     private static void sendMessage(DataOutputStream outputStream) throws IOException {
         while (true) {
             Scanner scanner = new Scanner(System.in);
@@ -61,11 +60,13 @@ private static void echoServer(){
             if (answer.startsWith("/end")) {
                 break;
             }
-            try {
-                outputStream.writeUTF("Server Answered: " + answer);
-            } catch (IOException e) {
-                System.err.println("не удалось отпраить сообщение клиенту");
-                throw e;
+            if (!answer.isEmpty()) {
+                try {
+                    outputStream.writeUTF("Server Answered: " + answer);
+                } catch (IOException e) {
+                    System.err.println("не удалось отпраить сообщение клиенту");
+                    throw e;
+                }
             }
         }
     }

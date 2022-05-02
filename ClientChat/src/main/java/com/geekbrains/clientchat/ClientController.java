@@ -1,14 +1,13 @@
 package com.geekbrains.clientchat;
+
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
-
 import java.io.IOException;
 import java.text.DateFormat;
 import java.util.Date;
-import java.util.Scanner;
 import java.util.function.Consumer;
 
 public class ClientController {
@@ -40,8 +39,6 @@ public class ClientController {
         }
     }
 
-
-
     public void appendMessageToChat(String message) {
         if (!message.isEmpty()) {
             chatTextArea.appendText(message);
@@ -50,23 +47,17 @@ public class ClientController {
         }
     }
 
-    public Network getNetwork() {
-        return network;
-    }
-
     public void setNetwork(Network network) {
         this.network = network;
         network.waitMessages(new Consumer<String>() {
             @Override
             public void accept(String message) {
                 appendMessageToChat(message);
+                System.out.println(message);
             }
         });
     }
 
-    public ClientChat getApplication() {
-        return application;
-    }
 
     public void setApplication(ClientChat application) {
         this.application = application;
