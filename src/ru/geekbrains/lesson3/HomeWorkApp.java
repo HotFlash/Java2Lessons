@@ -1,6 +1,6 @@
 package ru.geekbrains.lesson3;
 
-import java.util.*;
+import java.util.Set;
 
 public class HomeWorkApp {
     public static void main(String[] args) {
