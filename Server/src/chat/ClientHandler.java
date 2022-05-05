@@ -10,6 +10,8 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.time.Duration;
+import java.util.concurrent.*;
 
 public class ClientHandler {
 
@@ -29,7 +31,7 @@ public class ClientHandler {
         outputStream = new ObjectOutputStream(clientSocket.getOutputStream());
         new Thread(() -> {
             try {
-                authenticate();
+                authWithTimeout(60);
                 readMessages();
             } catch (IOException e) {
                 System.err.println("Failed to process message from client");
@@ -44,9 +46,47 @@ public class ClientHandler {
         }).start();
     }
 
-    private void authenticate() throws IOException {
+    private void authWithTimeout(int timeoutDuration) throws IOException {
+        final Duration timeout = Duration.ofSeconds(timeoutDuration);
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+
+        final Future<String> handler = executor.submit(new Callable() {
+            @Override
+            public String call() throws Exception {
+                System.out.println("started timeout");
+                return authenticate();
+            }
+        });
+
+        try {
+            handler.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+            System.out.println("Success login");
+            executor.shutdownNow();
+        } catch (TimeoutException e) {
+            System.out.println("Finished time, closed connection");
+            closeConnection();
+            executor.shutdownNow();
+        } catch (ExecutionException b){
+            System.out.println("Unexpected error");
+            final Throwable cause = b.getCause();
+            System.err.println(cause);
+            handler.cancel(true);
+        } catch (InterruptedException d) {
+            System.out.println("interrupt");
+            executor.shutdownNow();
+        } finally {
+            System.out.println("just exit");
+            handler.cancel(true);
+            executor.shutdownNow();
+
+        }
+    }
+
+    private String authenticate() throws IOException {
+
         while (true) {
-            Command command = readCommand();
+
+                Command command = readCommand();
 
             if (command == null) {
                 continue;
@@ -65,7 +105,7 @@ public class ClientHandler {
                     this.userName = userName;
                     sendCommand(Command.authOkCommand(userName));
                     server.subscribe(this);
-                    return;
+                    return login;
                 }
             }
         }
