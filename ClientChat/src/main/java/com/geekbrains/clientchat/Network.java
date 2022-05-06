@@ -4,27 +4,36 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
-import java.util.Scanner;
 import java.util.function.Consumer;
 
 public class Network {
+
+    private static Network INSTANCE;
     public static final String SERVER_HOST = "127.0.0.1";
     public static final int SERVER_PORT = 8189;
 
-    private final String host;
-    private final int port;
+    private String host;
+    private int port;
 
     private Socket socket;
     private DataInputStream socketInput;
     private DataOutputStream socketOutput;
 
-    public Network(String host, int port) {
+    private Network(String host, int port) {
         this.host = host;
         this.port = port;
     }
 
-    public Network() {
+    private Network() {
         this(SERVER_HOST, SERVER_PORT);
+    }
+
+    public static Network getInstance() {
+        if (INSTANCE == null) {
+            INSTANCE = new Network();
+        }
+
+        return INSTANCE;
     }
 
     public boolean connect() {
@@ -44,46 +53,30 @@ public class Network {
             socketOutput.writeUTF(message);
         } catch (IOException e) {
             System.err.println("Не удалось отправить сообщение на сервер");
+            e.printStackTrace();
             throw e;
         }
     }
 
-    public void consoleChat() {
-        Thread thread = new Thread(() -> {
-            while (true) {
-                Scanner scanner = new Scanner(System.in);
-                String answer = scanner.nextLine();
-                if (answer.startsWith("/end")) {
-                    break;
-                }
-                if (!answer.isEmpty()) {
+    public void waitMessages(Consumer<String> messageHandler) {
+        Thread thread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                while (true) {
                     try {
-                        socketOutput.writeUTF(answer);
+                        if (Thread.currentThread().isInterrupted()) {
+                            return;
+                        }
+                        String message = socketInput.readUTF();
+                        messageHandler.accept(message);
                     } catch (IOException e) {
-                        System.err.println("не удалось отпраить сообщение клиенту");
+                        System.err.println("Не удалось получить сообщение от сервера");
+                        e.printStackTrace();
+                        break;
                     }
                 }
             }
         });
-        thread.setDaemon(true);
-        thread.start();
-    }
-
-    public void waitMessages(Consumer<String> messageHandler) {
-
-        Thread thread = new Thread(() -> {
-            while (true) {
-                try {
-                    String message = socketInput.readUTF();
-                    messageHandler.accept(message);
-                    //System.out.println(message);
-                } catch (IOException e) {
-                    System.err.println("Не удалось получить сообщение от сервера");
-                    break;
-                }
-            }
-        });
-
         thread.setDaemon(true);
         thread.start();
     }
