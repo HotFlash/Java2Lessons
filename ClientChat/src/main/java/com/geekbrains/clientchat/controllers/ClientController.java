@@ -1,8 +1,14 @@
 package com.geekbrains.clientchat.controllers;
 
-
-import com.geekbrains.clientchat.ClientChat;
-import com.geekbrains.clientchat.Network;
+import com.geekbrains.clientchat.dialogs.Dialogs;
+import com.geekbrains.clientchat.model.Network;
+import com.geekbrains.clientchat.model.ReadMessageListener;
+import com.geekbrains.command.command.Command;
+import com.geekbrains.command.command.CommandType;
+import com.geekbrains.command.command.commands.ClientMessageCommandData;
+import com.geekbrains.command.command.commands.UpdateUserListCommandData;
+import javafx.application.Platform;
+import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.ListView;
@@ -12,8 +18,6 @@ import javafx.scene.control.TextField;
 import java.io.IOException;
 import java.text.DateFormat;
 import java.util.Date;
-import java.util.Objects;
-import java.util.function.Consumer;
 
 public class ClientController {
 
@@ -29,9 +33,6 @@ public class ClientController {
     @FXML
     public ListView userList;
 
-    private ClientChat application;
-
-
     public void sendMessage() {
         String message = messageTextArea.getText();
 
@@ -40,62 +41,60 @@ public class ClientController {
             return;
         }
 
-        String sender = application.getChatStage().getTitle();
-        String recipient = "all";
+        String sender = null;
         if (!userList.getSelectionModel().isEmpty()) {
-            recipient = userList.getSelectionModel().getSelectedItem().toString();
+            sender = userList.getSelectionModel().getSelectedItem().toString();
         }
+
         try {
-            Network.getInstance().sendMessage(sender + "&&4" + message + "&&4" + recipient);
+            if (sender != null) {
+                Network.getInstance().sendPrivateMessage(sender, message);
+            } else {
+                Network.getInstance().sendMessage(message);
+            }
+
         } catch (IOException e) {
-            application.showErrorDialog("Ошибка передачи данных по сети");
+            Dialogs.NetworkError.SEND_MESSAGE.show();
         }
-        appendMessageToChat(sender, message);
+
+        appendMessageToChat("Я", message);
     }
 
     public void appendMessageToChat(String sender, String message) {
-
         chatTextArea.appendText(DateFormat.getInstance().format(new Date()));
         chatTextArea.appendText(System.lineSeparator());
 
         if (sender != null) {
-            if (!sender.equals(application.getChatStage().getTitle())) {
-                chatTextArea.appendText(sender + ":");
-                chatTextArea.appendText(System.lineSeparator());
-            } else {
-                chatTextArea.appendText("Я:");
-                chatTextArea.appendText(System.lineSeparator());
-            }
+            chatTextArea.appendText(sender + ":");
+            chatTextArea.appendText(System.lineSeparator());
         }
 
         chatTextArea.appendText(message);
         chatTextArea.appendText(System.lineSeparator());
         chatTextArea.appendText(System.lineSeparator());
-        messageTextArea.requestFocus();
+        requestFocusForTextArea();
         messageTextArea.clear();
     }
 
+    private void requestFocusForTextArea() {
+        Platform.runLater(() -> messageTextArea.requestFocus());
+    }
+
     public void initializeMessageHandler() {
-        Network.getInstance().waitMessages(new Consumer<String>() {
+        Network.getInstance().addReadMessageListener(new ReadMessageListener() {
             @Override
-            public void accept(String message) {
-                String[] parts = message.split("&&4");
-                message = parts[1];
-                String me = application.getChatStage().getTitle();
-                String sender = parts[0];
-                String recipient = parts[2];
-                if (Objects.equals(recipient, "all") || Objects.equals(recipient, me)) {
-                    appendMessageToChat(sender, message);
+            public void processReceivedCommand(Command command) {
+                if (command.getType() == CommandType.CLIENT_MESSAGE) {
+                    ClientMessageCommandData data = (ClientMessageCommandData) command.getData();
+                    appendMessageToChat(data.getSender(), data.getMessage());
+                } else if (command.getType() == CommandType.UPDATE_USERS_LIST) {
+                    UpdateUserListCommandData data = (UpdateUserListCommandData) command.getData();
+                    Platform.runLater(() -> {
+                        userList.setItems(FXCollections.observableArrayList(data.getUsers()));
+                    });
                 }
+
             }
         });
-    }
-
-    public ClientChat getApplication() {
-        return application;
-    }
-
-    public void setApplication(ClientChat application) {
-        this.application = application;
     }
 }

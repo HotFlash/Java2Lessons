@@ -1,6 +1,9 @@
 package ru.geekbrains.lesson3;
 
-import java.util.*;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
 
 public class Phones {
 
